@@ -29,9 +29,9 @@ const DEFAULT_COLUMN_ALIASES: Record<keyof ColumnMapping, string[]> = {
   responseId: ["responseid", "response_id", "id", "respondent_id", "respondentid"],
   institution: ["institution", "inst", "university", "college", "school_name", "institutionname"],
   school: ["school", "department", "dept", "college_unit", "academic_unit", "unit"],
-  programLevel: ["programlevel", "program_level", "level", "degree_level", "degreelevel", "program"],
-  surveyDate: ["surveydate", "survey_date", "date", "response_date", "responsedate", "timestamp"],
-  commentText: ["comment_text", "commenttext", "comment", "comments", "response_text", "responsetext", "text", "feedback", "open_ended", "openended", "q_text", "answer"],
+  programLevel: ["programlevel", "program_level", "level", "degree_level", "degreelevel", "program", "degree", "degree_type"],
+  surveyDate: ["surveydate", "survey_date", "date", "response_date", "responsedate", "timestamp", "date_submitted", "datesubmitted", "submitted", "created_at"],
+  commentText: ["comment_text", "commenttext", "comment", "comments", "response_text", "responsetext", "text", "feedback", "open_ended", "openended", "open_response", "openresponse", "q_text", "answer", "narrative", "free_text", "freetext", "verbatim", "openended_response"],
 };
 
 /**

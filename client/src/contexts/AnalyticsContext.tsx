@@ -86,7 +86,7 @@ interface AnalyticsContextType {
   progress: number;
   progressLabel: string;
   fileName: string | null;
-  runAnalysis: (file: File) => Promise<void>;
+  runAnalysis: (file: File, columnMapping?: Partial<import("@/lib/nlp/csvParser").ColumnMapping>) => Promise<void>;
   loadDemo: () => Promise<void>;
   reset: () => void;
   setResult: (result: AnalysisResult | null) => void;
@@ -372,7 +372,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     setProgressLabel(p.detail || p.step);
   }, []);
 
-  const runAnalysis = useCallback(async (file: File) => {
+  const runAnalysis = useCallback(async (file: File, columnMapping?: Partial<import("@/lib/nlp/csvParser").ColumnMapping>) => {
     setIsProcessing(true);
     setProgress(0);
     setFileName(file.name);
@@ -381,7 +381,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     const startTime = Date.now();
 
     try {
-      const pipelineResult = await runPipeline(file, undefined, handleProgress);
+      const pipelineResult = await runPipeline(file, columnMapping, handleProgress);
       const analysisResult = pipelineToAnalysis(pipelineResult, startTime);
       setResult(analysisResult);
       setProgress(100);

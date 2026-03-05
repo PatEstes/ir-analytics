@@ -85,3 +85,18 @@
 - [x] Add per-topic coherence scores (replacing single global coherence)
 - [x] Improve quality flag logic (relative size thresholds)
 - [x] Checkpoint and deliver
+
+## Interactive Column Mapper
+
+- [x] Review existing CSV parser and column auto-detection logic
+- [x] Create ColumnMapper component with dropdown selectors for each field
+- [x] Show CSV preview (first 5 rows) so users can see their data
+- [x] Auto-detect columns on file load and pre-fill dropdowns
+- [x] Allow manual override of any column mapping
+- [x] Mark required vs optional fields (Comment_Text required, others optional)
+- [x] Add "Confirm & Analyze" button to proceed with chosen mapping
+- [x] Integrate ColumnMapper into Home.tsx upload flow (file → mapper → analysis)
+- [x] Handle edge cases (missing columns, duplicate mappings, empty CSV)
+- [x] Write vitest tests for column mapping logic (9 tests)
+- [x] Test end-to-end with demo and real CSV data
+- [x] Checkpoint and deliver

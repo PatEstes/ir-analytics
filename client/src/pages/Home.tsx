@@ -1,6 +1,6 @@
 /*
  * Home.tsx — Observatory Design
- * Landing page with hero, CSV upload, and demo data option.
+ * Landing page with hero, CSV upload, column mapping, and demo data option.
  * Dark navy background, cyan accents, Space Grotesk headings, JetBrains Mono data.
  */
 
@@ -9,6 +9,8 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useAnalytics } from "@/contexts/AnalyticsContext";
+import ColumnMapper from "@/components/ColumnMapper";
+import type { ColumnMapping } from "@/lib/nlp/csvParser";
 import { Upload, Play, FileText, Shield, Cpu, BarChart3, TrendingUp, Quote, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
@@ -18,7 +20,7 @@ const UPLOAD_IMG = "https://d2xsxph8kpxj0f.cloudfront.net/91938469/6FYu2YaQLcgd9
 
 const features = [
   { icon: Shield, title: "FERPA-Safe", desc: "All processing runs locally. No data leaves your browser." },
-  { icon: Cpu, title: "Guided Topic Modeling", desc: "BERTopic with higher-ed seed themes discovers meaningful topics." },
+  { icon: Cpu, title: "Guided Topic Modeling", desc: "HDBSCAN with higher-ed seed themes discovers meaningful topics." },
   { icon: BarChart3, title: "Sentiment Analysis", desc: "VADER classifies every comment as Positive, Negative, or Neutral." },
   { icon: TrendingUp, title: "Trend Detection", desc: "Weekly frequency analysis flags emerging issues automatically." },
   { icon: Quote, title: "Representative Quotes", desc: "Surfaces the most representative comments for each theme." },
@@ -31,19 +33,34 @@ export default function Home() {
   const [, navigate] = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
-  const handleFile = useCallback(async (file: File) => {
+  // When a file is selected, show the column mapper instead of immediately running analysis
+  const handleFileSelected = useCallback((file: File) => {
     if (!file.name.endsWith(".csv")) return;
-    await runAnalysis(file);
+    setPendingFile(file);
+  }, []);
+
+  // When the user confirms column mapping, run the analysis
+  const handleMappingConfirmed = useCallback(async (file: File, mapping: Partial<ColumnMapping>) => {
+    setPendingFile(null);
+    await runAnalysis(file, mapping);
     navigate("/dashboard");
   }, [runAnalysis, navigate]);
+
+  // Cancel column mapping
+  const handleMappingCancelled = useCallback(() => {
+    setPendingFile(null);
+    // Reset the file input so the same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  }, [handleFile]);
+    if (file) handleFileSelected(file);
+  }, [handleFileSelected]);
 
   const handleDemo = useCallback(async () => {
     await loadDemo();
@@ -84,16 +101,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Upload Section */}
+      {/* Upload / Column Mapper / Processing Section */}
       <section className="container -mt-8 relative z-10 pb-20">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="max-w-3xl mx-auto"
+          className="max-w-4xl mx-auto"
         >
+          {/* State 1: Processing */}
           {isProcessing ? (
-            <div className="panel p-8 glow-border-active">
+            <div className="panel p-8 glow-border-active max-w-3xl mx-auto">
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Cpu className="w-6 h-6 text-primary animate-pulse" />
@@ -108,9 +126,17 @@ export default function Home() {
               <Progress value={progress} className="h-2 mb-3" />
               <p className="text-right text-sm font-mono text-primary">{progress}%</p>
             </div>
+          ) : pendingFile ? (
+            /* State 2: Column Mapping */
+            <ColumnMapper
+              file={pendingFile}
+              onConfirm={handleMappingConfirmed}
+              onCancel={handleMappingCancelled}
+            />
           ) : (
+            /* State 3: Upload prompt */
             <div
-              className={`panel p-8 transition-all duration-200 ${dragOver ? "glow-border-active" : "glow-border"}`}
+              className={`panel p-8 transition-all duration-200 max-w-3xl mx-auto ${dragOver ? "glow-border-active" : "glow-border"}`}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
@@ -124,7 +150,8 @@ export default function Home() {
                     Upload Survey Data
                   </h2>
                   <p className="text-muted-foreground mb-6 leading-relaxed">
-                    Drop a Qualtrics CSV file here, or click to browse. Your data stays in the browser — nothing is uploaded to any server.
+                    Drop a CSV file here, or click to browse. You'll be able to map your columns before analysis begins.
+                    Your data stays in the browser — nothing is uploaded to any server.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
                     <Button
@@ -152,7 +179,7 @@ export default function Home() {
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) handleFile(file);
+                      if (file) handleFileSelected(file);
                     }}
                   />
                 </div>
@@ -162,10 +189,10 @@ export default function Home() {
               <div className="mt-6 pt-6 border-t border-border">
                 <p className="text-xs text-muted-foreground flex items-center gap-2 mb-2">
                   <FileText className="w-3.5 h-3.5" />
-                  Expected CSV columns:
+                  We auto-detect common column names. You can also map columns manually:
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {["ResponseID", "Institution", "School", "ProgramLevel", "SurveyDate", "Comment_Text"].map((col) => (
+                  {["Comment_Text", "ResponseID", "Institution", "School", "ProgramLevel", "SurveyDate"].map((col) => (
                     <span key={col} className="px-2 py-0.5 rounded text-xs font-mono bg-secondary text-secondary-foreground">
                       {col}
                     </span>
@@ -216,10 +243,10 @@ export default function Home() {
               </h2>
               <div className="space-y-4">
                 {[
-                  { step: "01", title: "Upload CSV", desc: "Drop your Qualtrics survey export. We accept standard CSV with comment text columns." },
-                  { step: "02", title: "Automated Analysis", desc: "BERTopic discovers themes, VADER scores sentiment, and trend detection flags emerging issues." },
-                  { step: "03", title: "Interactive Dashboard", desc: "Explore themes, sentiment breakdowns, trend lines, representative quotes, and validation metrics." },
-                  { step: "04", title: "Export & Report", desc: "Download CSV datasets for Power BI, Tableau, or any reporting tool." },
+                  { step: "01", title: "Upload CSV", desc: "Drop your survey export — Qualtrics, SurveyMonkey, or any CSV format." },
+                  { step: "02", title: "Map Columns", desc: "Auto-detected columns are pre-filled. Adjust mappings for non-standard exports." },
+                  { step: "03", title: "Automated Analysis", desc: "HDBSCAN discovers topics, VADER scores sentiment, and trend detection flags emerging issues." },
+                  { step: "04", title: "Interactive Dashboard", desc: "Explore themes, sentiment breakdowns, trend lines, representative quotes, and validation metrics." },
                 ].map((item) => (
                   <div key={item.step} className="flex gap-4 items-start">
                     <span className="stat-number text-lg font-bold text-primary shrink-0">{item.step}</span>
