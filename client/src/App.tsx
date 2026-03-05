@@ -12,8 +12,10 @@ import Compare from "./pages/Compare";
 import ShareAnalysis from "./pages/ShareAnalysis";
 import SharedView from "./pages/SharedView";
 import { AnalyticsProvider } from "./contexts/AnalyticsContext";
+import GlobalNav from "./components/GlobalNav";
 
 function Router() {
+  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path="/" component={Home} />
@@ -37,6 +39,7 @@ function App() {
         <TooltipProvider>
           <AnalyticsProvider>
             <Toaster />
+            <GlobalNav />
             <Router />
           </AnalyticsProvider>
         </TooltipProvider>

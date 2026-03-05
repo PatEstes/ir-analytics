@@ -18,7 +18,7 @@ import { useLocation } from "wouter";
 import { useState, useMemo } from "react";
 import {
   FolderOpen, Search, Calendar, FileText, BarChart3,
-  Trash2, Eye, GitCompare, ArrowLeft, Loader2, Plus, Share2
+  Trash2, Eye, GitCompare, Loader2, Plus, Share2
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -95,20 +95,13 @@ export default function Library() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30">
-        <div className="container flex items-center justify-between h-16">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Home
-            </Button>
-            <div className="h-6 w-px bg-border" />
-            <h1 className="text-lg font-semibold flex items-center gap-2" style={{ fontFamily: "var(--font-heading)" }}>
-              <FolderOpen className="w-5 h-5 text-primary" />
-              Analysis Library
-            </h1>
-          </div>
+      {/* Page Header */}
+      <div className="border-b border-border bg-card/30">
+        <div className="container flex items-center justify-between h-14">
+          <h1 className="text-lg font-semibold flex items-center gap-2" style={{ fontFamily: "var(--font-heading)" }}>
+            <FolderOpen className="w-5 h-5 text-primary" />
+            Analysis Library
+          </h1>
           <div className="flex items-center gap-3">
             {compareMode && compareIds.length >= 2 && (
               <Button
@@ -136,7 +129,7 @@ export default function Library() {
             </Button>
           </div>
         </div>
-      </header>
+      </div>
 
       <div className="container py-8">
         {/* Search */}

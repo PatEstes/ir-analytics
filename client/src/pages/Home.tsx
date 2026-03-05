@@ -60,7 +60,7 @@ export default function Home() {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/60 to-background" />
 
-        <div className="relative container pt-16 pb-24 sm:pt-24 sm:pb-32">
+        <div className="relative container pt-12 pb-24 sm:pt-20 sm:pb-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

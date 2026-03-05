@@ -14,7 +14,7 @@ import { trpc } from "@/lib/trpc";
 import { useLocation, useParams } from "wouter";
 import { useState } from "react";
 import {
-  ArrowLeft, Loader2, Share2, Link2, Copy, Check,
+  Loader2, Share2, Link2, Copy, Check,
   Trash2, Clock, Eye, ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
@@ -76,22 +76,15 @@ export default function ShareAnalysis() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30">
+      {/* Page Header */}
+      <div className="border-b border-border bg-card/30">
         <div className="container flex items-center justify-between h-14">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/library")}>
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Library
-            </Button>
-            <div className="h-5 w-px bg-border" />
-            <h1 className="text-sm font-semibold flex items-center gap-2" style={{ fontFamily: "var(--font-heading)" }}>
-              <Share2 className="w-4 h-4 text-primary" />
-              Share: {analysis?.title || "Analysis"}
-            </h1>
-          </div>
+          <h1 className="text-sm font-semibold flex items-center gap-2" style={{ fontFamily: "var(--font-heading)" }}>
+            <Share2 className="w-4 h-4 text-primary" />
+            Share: {analysis?.title || "Analysis"}
+          </h1>
         </div>
-      </header>
+      </div>
 
       <div className="container py-8 max-w-2xl">
         {/* Create New Link */}

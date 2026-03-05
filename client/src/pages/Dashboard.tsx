@@ -14,7 +14,6 @@ import FilterBar from "@/components/FilterBar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ArrowLeft,
   FileText,
   BarChart3,
   SmilePlus,
@@ -28,7 +27,6 @@ import {
   Percent,
   FilterX,
   Save,
-  FolderOpen,
 } from "lucide-react";
 import SaveAnalysisDialog from "@/components/SaveAnalysisDialog";
 import ExportButton from "@/components/ExportButton";
@@ -146,43 +144,29 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background grid-dots">
-      {/* Top Command Bar */}
-      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="container flex items-center justify-between h-14">
+      {/* Dashboard Command Bar */}
+      <header className="border-b border-border bg-background/60 backdrop-blur-sm">
+        <div className="container flex items-center justify-between h-12">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => { reset(); navigate("/"); }}>
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Back</span>
-            </Button>
-            <div className="h-5 w-px bg-border" />
-            <h1 className="text-sm font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
-              IR Analytics Dashboard
-            </h1>
             {fileName && (
-              <span className="hidden md:inline text-xs text-muted-foreground font-mono bg-secondary px-2 py-0.5 rounded">
+              <span className="text-xs text-muted-foreground font-mono bg-secondary px-2 py-0.5 rounded">
                 {fileName}
               </span>
             )}
-          </div>
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            {user && (
-              <>
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10" onClick={() => setShowSave(true)}>
-                  <Save className="w-3.5 h-3.5" />
-                  Save
-                </Button>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={() => navigate("/library")}>
-                  <FolderOpen className="w-3.5 h-3.5" />
-                  Library
-                </Button>
-              </>
-            )}
-            <span className="hidden sm:flex items-center gap-1"><Clock className="w-3 h-3" /> {processingTime}s</span>
-            <span className="hidden sm:flex items-center gap-1">
+            <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground"><Clock className="w-3 h-3" /> {processingTime}s</span>
+            <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
               <Hash className="w-3 h-3" />
               {isFiltered ? `${filteredCleanedComments} / ${cleanedComments}` : cleanedComments} comments
             </span>
-            <span className="flex items-center gap-1"><Percent className="w-3 h-3" /> {(noiseRatio * 100).toFixed(1)}% noise</span>
+            <span className="flex items-center gap-1 text-xs text-muted-foreground"><Percent className="w-3 h-3" /> {(noiseRatio * 100).toFixed(1)}% noise</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {user && (
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10" onClick={() => setShowSave(true)}>
+                <Save className="w-3.5 h-3.5" />
+                Save
+              </Button>
+            )}
             <ExportButton
               label="Export All"
               variant="header"

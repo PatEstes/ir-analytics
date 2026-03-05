@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useSearch } from "wouter";
 import { useMemo } from "react";
-import { ArrowLeft, Loader2, GitCompare, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Loader2, GitCompare, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
 import { AnalysisResult } from "@/contexts/AnalyticsContext";
@@ -44,8 +44,7 @@ export default function Compare() {
           <h2 className="text-xl font-semibold mb-2">Select Analyses to Compare</h2>
           <p className="text-muted-foreground mb-4">Go to the Library and select 2-4 analyses.</p>
           <Button onClick={() => navigate("/library")}>
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Library
+            Go to Library
           </Button>
         </div>
       </div>
@@ -60,20 +59,13 @@ export default function Compare() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30">
+      {/* Page Header */}
+      <div className="border-b border-border bg-card/30">
         <div className="container flex items-center justify-between h-14">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/library")}>
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Library
-            </Button>
-            <div className="h-5 w-px bg-border" />
-            <h1 className="text-sm font-semibold flex items-center gap-2" style={{ fontFamily: "var(--font-heading)" }}>
-              <GitCompare className="w-4 h-4 text-primary" />
-              Semester Comparison
-            </h1>
-          </div>
+          <h1 className="text-sm font-semibold flex items-center gap-2" style={{ fontFamily: "var(--font-heading)" }}>
+            <GitCompare className="w-4 h-4 text-primary" />
+            Semester Comparison
+          </h1>
           <div className="flex items-center gap-2">
             {analyses.map((a, i) => (
               <Badge key={a.id} variant="outline" className="text-xs" style={{ borderColor: COLORS[i] }}>
@@ -83,7 +75,7 @@ export default function Compare() {
             ))}
           </div>
         </div>
-      </header>
+      </div>
 
       <div className="container py-8 space-y-8">
         {/* Overview Cards */}

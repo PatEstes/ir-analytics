@@ -58,3 +58,16 @@
 - [x] Test with real CSV data end-to-end (50 comments, 7 themes, 4.9s)
 - [x] Write vitest tests for pipeline modules (13 new tests, 34 total)
 - [x] Checkpoint and deliver
+
+## Global Navigation Bar
+
+- [x] Review current page structure and identify redundant navigation
+- [x] Build GlobalNav component with branding, nav links, auth state, mobile menu
+- [x] Integrate GlobalNav into App.tsx as a persistent layout wrapper
+- [x] Update Home page to remove any conflicting header
+- [x] Update Dashboard page to integrate with global nav (remove standalone back/library buttons)
+- [x] Update Library page to work within global nav layout
+- [x] Update Compare page to work within global nav layout
+- [x] Update AnalysisView, ShareAnalysis, SharedView pages
+- [x] Ensure responsive mobile hamburger menu
+- [x] Test all pages with global nav, write tests, and checkpoint

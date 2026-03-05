@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useParams } from "wouter";
 import { useEffect, useMemo } from "react";
-import { ArrowLeft, Loader2, Share2, Calendar, FileText, BarChart3 } from "lucide-react";
+import { Loader2, Share2, Calendar, FileText, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAnalytics, AnalysisResult } from "@/contexts/AnalyticsContext";
 import Dashboard from "./Dashboard";
@@ -44,8 +44,7 @@ export default function AnalysisView() {
           <h2 className="text-xl font-semibold mb-2">Analysis Not Found</h2>
           <p className="text-muted-foreground mb-4">This analysis may have been deleted or you don't have access.</p>
           <Button onClick={() => navigate("/library")}>
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Library
+            Go to Library
           </Button>
         </div>
       </div>
@@ -55,14 +54,9 @@ export default function AnalysisView() {
   return (
     <div className="min-h-screen bg-background">
       {/* Analysis Header */}
-      <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30">
+      <div className="border-b border-border bg-card/30">
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/library")}>
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Library
-            </Button>
-            <div className="h-5 w-px bg-border" />
             <h1 className="text-sm font-semibold truncate max-w-xs" style={{ fontFamily: "var(--font-heading)" }}>
               {data.title}
             </h1>
