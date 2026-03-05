@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1772677668992,
+      "tag": "0000_mixed_chamber",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1772677779335,
+      "tag": "0001_slim_doctor_faustus",
+      "breakpoints": true
+    }
+  ]
+}

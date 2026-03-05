@@ -7,6 +7,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { useAnalytics } from "@/contexts/AnalyticsContext";
 import { Upload, Play, FileText, Shield, Cpu, BarChart3, TrendingUp, Quote, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -25,6 +26,7 @@ const features = [
 ];
 
 export default function Home() {
+  const { user, isAuthenticated } = useAuth();
   const { runAnalysis, loadDemo, isProcessing, progress, progressLabel } = useAnalytics();
   const [, navigate] = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);

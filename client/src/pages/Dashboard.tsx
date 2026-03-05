@@ -6,7 +6,7 @@
  * Filters: Theme, Institution, Program Level, School, Text Search
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { useAnalytics } from "@/contexts/AnalyticsContext";
 import { useFilters } from "@/hooks/useFilters";
@@ -27,7 +27,11 @@ import {
   Hash,
   Percent,
   FilterX,
+  Save,
+  FolderOpen,
 } from "lucide-react";
+import SaveAnalysisDialog from "@/components/SaveAnalysisDialog";
+import { useAuth } from "@/_core/hooks/useAuth";
 import {
   BarChart,
   Bar,
@@ -99,6 +103,8 @@ function EmptyFilterState({ message }: { message?: string }) {
 
 export default function Dashboard() {
   const { result, fileName, reset } = useAnalytics();
+  const { user } = useAuth();
+  const [showSave, setShowSave] = useState(false);
   const [, navigate] = useLocation();
   const params = useParams<{ tab?: string }>();
   const activeTab = params.tab || "summary";
@@ -149,6 +155,18 @@ export default function Dashboard() {
             )}
           </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            {user && (
+              <>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10" onClick={() => setShowSave(true)}>
+                  <Save className="w-3.5 h-3.5" />
+                  Save
+                </Button>
+                <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={() => navigate("/library")}>
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  Library
+                </Button>
+              </>
+            )}
             <span className="hidden sm:flex items-center gap-1"><Clock className="w-3 h-3" /> {processingTime}s</span>
             <span className="hidden sm:flex items-center gap-1">
               <Hash className="w-3 h-3" />
@@ -559,6 +577,13 @@ export default function Dashboard() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Save Dialog */}
+      <SaveAnalysisDialog
+        open={showSave}
+        onOpenChange={setShowSave}
+        onSaved={(id) => navigate(`/analysis/${id}`)}
+      />
     </div>
   );
 }

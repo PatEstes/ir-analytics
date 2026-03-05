@@ -88,6 +88,8 @@ interface AnalyticsContextType {
   runAnalysis: (file: File) => Promise<void>;
   loadDemo: () => Promise<void>;
   reset: () => void;
+  setResult: (result: AnalysisResult | null) => void;
+  setFileName: (name: string | null) => void;
 }
 
 const AnalyticsContext = createContext<AnalyticsContextType | null>(null);
@@ -479,7 +481,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AnalyticsContext.Provider value={{ result, isProcessing, progress, progressLabel, fileName, runAnalysis, loadDemo, reset }}>
+    <AnalyticsContext.Provider value={{ result, isProcessing, progress, progressLabel, fileName, runAnalysis, loadDemo, reset, setResult, setFileName }}>
       {children}
     </AnalyticsContext.Provider>
   );
