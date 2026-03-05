@@ -64,6 +64,7 @@ export interface PipelineResult {
   }[];
   validation: {
     topicCoherence: number;
+    perTopicCoherence: Record<string, number>;
     avgClusterSize: number;
     noiseRatio: number;
     topicSizeDistribution: { topic: string; size: number }[];
@@ -127,11 +128,12 @@ export async function runPipeline(
     report("Analyzing sentiment", 4, pct, `${completed}/${total} comments scored`);
   });
 
-  // ── Step 5: Cluster into topics ──
-  report("Discovering topics", 5, 60, "Clustering comments by semantic similarity...");
+  // ── Step 5: Cluster into topics (HDBSCAN) ──
+  report("Discovering topics", 5, 60, "Running HDBSCAN density-based clustering...");
   const clusterResult = clusterEmbeddings(embeddings);
 
-  report("Discovering topics", 5, 65, "Labeling clusters with seed topics...");
+  const algoUsed = clusterResult.algorithm === "hdbscan" ? "HDBSCAN" : "K-Means (fallback)";
+  report("Discovering topics", 5, 65, `${algoUsed} found ${clusterResult.k} clusters (${clusterResult.noiseIndices.length} noise points). Labeling...`);
   const topicLabels = await labelClusters(clusterResult.centroids, embedText);
 
   report("Discovering topics", 5, 70, "Finding representative quotes...");
@@ -327,24 +329,42 @@ function computeValidation(
   totalAnalyzed: number
 ): {
   topicCoherence: number;
+  perTopicCoherence: Record<string, number>;
   avgClusterSize: number;
   noiseRatio: number;
   topicSizeDistribution: { topic: string; size: number }[];
 } {
-  // Compute average intra-cluster cosine similarity as coherence proxy
-  const clusterSims: number[] = [];
+  // Compute per-cluster intra-cluster cosine similarity as coherence proxy
+  const clusterSims = new Map<number, number[]>();
   const clusterSizes = new Map<number, number>();
 
   for (let i = 0; i < embeddings.length; i++) {
     const cluster = clusterResult.assignments[i];
     clusterSizes.set(cluster, (clusterSizes.get(cluster) || 0) + 1);
     const sim = cosineSimilarity(embeddings[i], clusterResult.centroids[cluster]);
-    clusterSims.push(sim);
+    if (!clusterSims.has(cluster)) clusterSims.set(cluster, []);
+    clusterSims.get(cluster)!.push(sim);
   }
 
-  const topicCoherence = Math.round(
-    (clusterSims.reduce((a, b) => a + b, 0) / clusterSims.length) * 100
-  ) / 100;
+  // Per-topic coherence: average similarity of members to centroid
+  const perTopicCoherence: Record<string, number> = {};
+  let allSims: number[] = [];
+  topicLabels.forEach((topic, idx) => {
+    const sims = clusterSims.get(idx) || [];
+    allSims = allSims.concat(sims);
+    if (sims.length > 0) {
+      perTopicCoherence[topic] = Math.round(
+        (sims.reduce((a, b) => a + b, 0) / sims.length) * 10000
+      ) / 10000;
+    } else {
+      perTopicCoherence[topic] = 0;
+    }
+  });
+
+  // Global average coherence
+  const topicCoherence = allSims.length > 0
+    ? Math.round((allSims.reduce((a, b) => a + b, 0) / allSims.length) * 100) / 100
+    : 0;
 
   const avgClusterSize = Math.round(totalAnalyzed / clusterResult.centroids.length);
   const noiseRatio = Math.round((clusterResult.noiseIndices.length / totalAnalyzed) * 100) / 100;
@@ -354,7 +374,7 @@ function computeValidation(
     size: clusterSizes.get(idx) || 0,
   }));
 
-  return { topicCoherence, avgClusterSize, noiseRatio, topicSizeDistribution };
+  return { topicCoherence, perTopicCoherence, avgClusterSize, noiseRatio, topicSizeDistribution };
 }
 
 function computeStratified(

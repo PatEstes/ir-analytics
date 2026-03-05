@@ -196,16 +196,24 @@ function pipelineToAnalysis(pr: PipelineResult, startTime: number): AnalysisResu
     });
   }
 
-  // Validation
+  // Validation — use per-topic coherence when available
+  const perTopicCoherence = pr.validation.perTopicCoherence || {};
+  const avgClusterSize = pr.validation.avgClusterSize || Math.round(pr.analyzedComments / topicNames.length);
   const validation: ValidationRow[] = pr.validation.topicSizeDistribution.map((t) => {
     const topicIdx = topicNames.indexOf(t.topic);
+    const coherence = perTopicCoherence[t.topic] ?? pr.validation.topicCoherence;
+    // Quality flag: use relative size threshold (< 25% of average cluster size)
+    const sizeThreshold = Math.max(3, Math.floor(avgClusterSize * 0.25));
+    let qualityFlag = "OK";
+    if (t.size < sizeThreshold) qualityFlag = "Very Small";
+    else if (coherence < 0.4) qualityFlag = "Low Coherence";
     return {
       topic: topicIdx >= 0 ? topicIdx : 0,
       topicName: t.topic,
       size: t.size,
       percentage: parseFloat(((t.size / pr.analyzedComments) * 100).toFixed(2)),
-      coherence: pr.validation.topicCoherence,
-      qualityFlag: t.size < 10 ? "Very Small" : "OK",
+      coherence,
+      qualityFlag,
     };
   });
   // Add noise row

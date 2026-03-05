@@ -71,3 +71,17 @@
 - [x] Update AnalysisView, ShareAnalysis, SharedView pages
 - [x] Ensure responsive mobile hamburger menu
 - [x] Test all pages with global nav, write tests, and checkpoint
+
+## HDBSCAN Clustering Upgrade
+
+- [x] Research JavaScript HDBSCAN implementations (hdbscanjs, custom, WASM)
+- [x] Implement HDBSCAN clustering module replacing K-Means
+- [x] Handle genuine noise points (cluster label -1) in the pipeline
+- [x] Update topic labeling to work with variable cluster counts
+- [x] Update validation metrics (noise ratio, coherence) to use real HDBSCAN noise
+- [x] Update pipeline.ts to integrate new clustering module
+- [x] Write vitest tests for HDBSCAN clustering
+- [x] Test end-to-end with demo data and verify improved topic quality
+- [x] Add per-topic coherence scores (replacing single global coherence)
+- [x] Improve quality flag logic (relative size thresholds)
+- [x] Checkpoint and deliver
