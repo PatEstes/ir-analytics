@@ -27,3 +27,16 @@
 - [x] Update navigation and routing in App.tsx
 - [x] Write vitest tests for backend routes (13 tests passing)
 - [x] Test end-to-end and checkpoint
+
+## CSV Export Feature
+
+- [x] Create reusable CSV export utility (csvExport.ts)
+- [x] Add export button to Summary tab (executive summary text export)
+- [x] Add export button to Themes tab (topic distribution data)
+- [x] Add export button to Sentiment tab (sentiment breakdown data)
+- [x] Add export button to Trends tab (weekly trend data)
+- [x] Add export button to Quotes tab (representative quotes with metadata)
+- [x] Add export button to Validation tab (validation metrics data)
+- [x] Add "Export All" button in dashboard header for full filtered dataset
+- [x] Test all exports with filters applied
+- [x] Checkpoint and deliver

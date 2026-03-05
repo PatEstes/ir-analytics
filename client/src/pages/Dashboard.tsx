@@ -31,7 +31,17 @@ import {
   FolderOpen,
 } from "lucide-react";
 import SaveAnalysisDialog from "@/components/SaveAnalysisDialog";
+import ExportButton from "@/components/ExportButton";
 import { useAuth } from "@/_core/hooks/useAuth";
+import {
+  exportSummary,
+  exportThemes,
+  exportSentiment,
+  exportTrends,
+  exportQuotes,
+  exportValidation,
+  exportAll,
+} from "@/lib/csvExport";
 import {
   BarChart,
   Bar,
@@ -173,6 +183,17 @@ export default function Dashboard() {
               {isFiltered ? `${filteredCleanedComments} / ${cleanedComments}` : cleanedComments} comments
             </span>
             <span className="flex items-center gap-1"><Percent className="w-3 h-3" /> {(noiseRatio * 100).toFixed(1)}% noise</span>
+            <ExportButton
+              label="Export All"
+              variant="header"
+              onClick={() => exportAll(
+                filtered.executiveSummary, totalComments, cleanedComments,
+                filtered.filteredCleanedComments, noiseRatio, isFiltered,
+                filtered.themeSummary, filtered.themeSentiment,
+                filtered.byInstitution, filtered.byProgram, filtered.bySchool,
+                filtered.trends, filtered.emergingThemes, filtered.quotes, filtered.validation,
+              )}
+            />
           </div>
         </div>
       </header>
@@ -214,6 +235,15 @@ export default function Dashboard() {
 
           {/* ---- SUMMARY ---- */}
           <TabsContent value="summary">
+            <div className="flex justify-end mb-3">
+              <ExportButton
+                label="Export Summary"
+                onClick={() => exportSummary(
+                  executiveSummary, totalComments, cleanedComments,
+                  filteredCleanedComments, themeSummary.length, noiseRatio, isFiltered,
+                )}
+              />
+            </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <StatCard label="Total Responses" value={totalComments.toLocaleString()} icon={FileText} accent />
               <StatCard label={isFiltered ? "Filtered Comments" : "Valid Comments"} value={isFiltered ? filteredCleanedComments.toLocaleString() : cleanedComments.toLocaleString()} icon={Hash} />
@@ -232,6 +262,14 @@ export default function Dashboard() {
               <EmptyFilterState />
             ) : (
               <>
+                <div className="flex justify-end mb-3">
+                  <ExportButton
+                    label="Export Themes"
+                    onClick={() => exportThemes(
+                      themeSummary, filtered.byInstitution, filtered.byProgram, filtered.bySchool,
+                    )}
+                  />
+                </div>
                 <div className="grid lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-2 panel p-6">
                     <h2 className="text-lg font-semibold mb-4" style={{ fontFamily: "var(--font-heading)" }}>Theme Frequency</h2>
@@ -328,6 +366,12 @@ export default function Dashboard() {
               <EmptyFilterState />
             ) : (
               <>
+                <div className="flex justify-end mb-3">
+                  <ExportButton
+                    label="Export Sentiment"
+                    onClick={() => exportSentiment(themeSentiment)}
+                  />
+                </div>
                 <div className="grid lg:grid-cols-2 gap-6 mb-6">
                   <div className="panel p-6">
                     <h2 className="text-lg font-semibold mb-4" style={{ fontFamily: "var(--font-heading)" }}>Average Sentiment by Theme</h2>
@@ -405,6 +449,12 @@ export default function Dashboard() {
               <EmptyFilterState />
             ) : (
               <>
+                <div className="flex justify-end mb-3">
+                  <ExportButton
+                    label="Export Trends"
+                    onClick={() => exportTrends(trends, emergingThemes, themeSummary)}
+                  />
+                </div>
                 <div className="panel p-6 mb-6">
                   <h2 className="text-lg font-semibold mb-4" style={{ fontFamily: "var(--font-heading)" }}>Weekly Theme Frequency</h2>
                   <ResponsiveContainer width="100%" height={450}>
@@ -468,6 +518,12 @@ export default function Dashboard() {
               <EmptyFilterState message="No quotes match the current filters." />
             ) : (
               <div className="space-y-6">
+                <div className="flex justify-end">
+                  <ExportButton
+                    label="Export Quotes"
+                    onClick={() => exportQuotes(quotes, themeSummary)}
+                  />
+                </div>
                 {themeSummary.map((t) => {
                   const topicQuotes = quotes.filter((q) => q.topic === t.topic);
                   if (topicQuotes.length === 0) return null;
@@ -502,6 +558,12 @@ export default function Dashboard() {
               <EmptyFilterState />
             ) : (
               <>
+                <div className="flex justify-end mb-3">
+                  <ExportButton
+                    label="Export Validation"
+                    onClick={() => exportValidation(validation, noiseRatio)}
+                  />
+                </div>
                 <div className="grid lg:grid-cols-2 gap-6 mb-6">
                   <div className="panel p-6">
                     <h2 className="text-lg font-semibold mb-4" style={{ fontFamily: "var(--font-heading)" }}>Topic Coherence Scores</h2>
