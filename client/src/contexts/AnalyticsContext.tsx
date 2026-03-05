@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
+import { runPipeline, type PipelineResult, type PipelineProgress } from "@/lib/nlp/pipeline";
 
 // ---- Types ----
 export interface ThemeSummary {
@@ -100,23 +101,146 @@ export function useAnalytics() {
   return ctx;
 }
 
-// ---- Seed Topics ----
-const SEED_THEMES = [
-  { name: "Instructor Support", keywords: ["instructor", "professor", "teaching", "faculty", "lecture", "helpful", "responsive"] },
-  { name: "Advising & Communication", keywords: ["advising", "advisor", "guidance", "counseling", "mentoring", "communication"] },
-  { name: "Course Workload", keywords: ["workload", "assignments", "homework", "exams", "grading", "heavy", "manageable"] },
-  { name: "Course Design & Content", keywords: ["course", "curriculum", "design", "content", "material", "organized", "structured"] },
-  { name: "Technical Platform Issues", keywords: ["technology", "platform", "LMS", "online", "technical", "Canvas", "Blackboard"] },
-  { name: "Student Support Services", keywords: ["support", "services", "tutoring", "resources", "help", "library", "writing center"] },
-  { name: "Career & Outcomes", keywords: ["career", "job", "employment", "internship", "outcomes", "networking", "professional"] },
-  { name: "Scheduling & Flexibility", keywords: ["schedule", "flexibility", "timing", "availability", "convenient", "evening", "weekend"] },
-];
+// ── Convert PipelineResult → AnalysisResult ──
+function pipelineToAnalysis(pr: PipelineResult, startTime: number): AnalysisResult {
+  // Build topic index map
+  const topicNames = pr.topics.map((t) => t.name);
 
-const INSTITUTIONS = ["State University", "Metro College", "Tech Institute", "Liberal Arts College"];
-const SCHOOLS = ["School of Business", "School of Education", "School of Engineering", "School of Arts & Sciences"];
-const PROGRAM_LEVELS = ["Undergraduate", "Graduate", "Doctoral", "Certificate"];
+  const themeSummary: ThemeSummary[] = pr.topics.map((t, i) => ({
+    topic: i,
+    name: t.name,
+    count: t.count,
+    keywords: [], // real pipeline doesn't extract keywords, leave empty
+  }));
 
-// ---- Sample Comments ----
+  const themeSentiment: ThemeSentiment[] = pr.sentimentByTopic.map((s) => {
+    const topicIdx = topicNames.indexOf(s.topic);
+    const total = pr.comments.filter((c) => c.topic === s.topic).length;
+    const posCount = Math.round((s.positive / 100) * total);
+    const negCount = Math.round((s.negative / 100) * total);
+    const neuCount = total - posCount - negCount;
+    return {
+      topic: topicIdx >= 0 ? topicIdx : 0,
+      topicName: s.topic,
+      count: total,
+      avgCompound: s.avgCompound,
+      positiveCount: posCount,
+      negativeCount: negCount,
+      neutralCount: Math.max(0, neuCount),
+      positivePct: s.positive,
+      negativePct: s.negative,
+      neutralPct: s.neutral,
+    };
+  });
+
+  // Stratified rows
+  const byInstitution: StratifiedRow[] = [];
+  const byProgram: StratifiedRow[] = [];
+  const bySchool: StratifiedRow[] = [];
+
+  for (const [inst, topics] of Object.entries(pr.stratified.byInstitution)) {
+    for (const [topicName, count] of Object.entries(topics)) {
+      const topicIdx = topicNames.indexOf(topicName);
+      byInstitution.push({ group: inst, topic: topicIdx >= 0 ? topicIdx : 0, topicName, count });
+    }
+  }
+  for (const [prog, topics] of Object.entries(pr.stratified.byProgram)) {
+    for (const [topicName, count] of Object.entries(topics)) {
+      const topicIdx = topicNames.indexOf(topicName);
+      byProgram.push({ group: prog, topic: topicIdx >= 0 ? topicIdx : 0, topicName, count });
+    }
+  }
+  for (const [sch, topics] of Object.entries(pr.stratified.bySchool)) {
+    for (const [topicName, count] of Object.entries(topics)) {
+      const topicIdx = topicNames.indexOf(topicName);
+      bySchool.push({ group: sch, topic: topicIdx >= 0 ? topicIdx : 0, topicName, count });
+    }
+  }
+
+  // Trends
+  const trends: TrendRow[] = [];
+  for (const wt of pr.weeklyTrends) {
+    for (const [topicName, count] of Object.entries(wt.topics)) {
+      const topicIdx = topicNames.indexOf(topicName);
+      trends.push({ week: wt.week, topic: topicIdx >= 0 ? topicIdx : 0, topicName, count });
+    }
+  }
+
+  // Emerging themes
+  const emergingThemes: EmergingTheme[] = pr.emergingThemes.map((e) => {
+    const topicIdx = topicNames.indexOf(e.theme);
+    const growthRate = e.previousCount > 0 ? parseFloat((e.recentCount / e.previousCount).toFixed(2)) : 0;
+    return {
+      topic: topicIdx >= 0 ? topicIdx : 0,
+      topicName: e.theme,
+      previousWeek: "",
+      previousCount: e.previousCount,
+      latestWeek: "",
+      latestCount: e.recentCount,
+      growthRate,
+      emerging: e.trend === "rising",
+    };
+  });
+
+  // Quotes
+  const quotes: Quote[] = [];
+  for (const t of pr.topics) {
+    const topicIdx = topicNames.indexOf(t.name);
+    t.representativeQuotes.forEach((q, i) => {
+      quotes.push({
+        topic: topicIdx >= 0 ? topicIdx : 0,
+        topicName: t.name,
+        quote: q,
+        similarity: parseFloat((0.95 - i * 0.05).toFixed(4)),
+      });
+    });
+  }
+
+  // Validation
+  const validation: ValidationRow[] = pr.validation.topicSizeDistribution.map((t) => {
+    const topicIdx = topicNames.indexOf(t.topic);
+    return {
+      topic: topicIdx >= 0 ? topicIdx : 0,
+      topicName: t.topic,
+      size: t.size,
+      percentage: parseFloat(((t.size / pr.analyzedComments) * 100).toFixed(2)),
+      coherence: pr.validation.topicCoherence,
+      qualityFlag: t.size < 10 ? "Very Small" : "OK",
+    };
+  });
+  // Add noise row
+  const noiseCount = Math.round(pr.validation.noiseRatio * pr.analyzedComments);
+  validation.push({
+    topic: -1,
+    topicName: "Noise",
+    size: noiseCount,
+    percentage: parseFloat((pr.validation.noiseRatio * 100).toFixed(2)),
+    coherence: null,
+    qualityFlag: "Noise",
+  });
+
+  const processingTime = parseFloat(((Date.now() - startTime) / 1000).toFixed(1));
+
+  return {
+    themeSummary,
+    themeSentiment,
+    byInstitution,
+    byProgram,
+    bySchool,
+    trends,
+    emergingThemes,
+    quotes,
+    validation,
+    executiveSummary: pr.executiveSummary,
+    totalComments: pr.totalComments,
+    cleanedComments: pr.analyzedComments,
+    noiseRatio: pr.validation.noiseRatio,
+    processingTime,
+  };
+}
+
+// ── Demo Data Generation ──
+// Uses the sample comments as a real CSV blob and runs them through the real pipeline.
 const SAMPLE_COMMENTS: Record<string, string[]> = {
   "Instructor Support": [
     "My professor was incredibly supportive and always available during office hours. The teaching quality was outstanding.",
@@ -144,7 +268,7 @@ const SAMPLE_COMMENTS: Record<string, string[]> = {
     "The grading in this course felt arbitrary. Similar answers received very different grades.",
     "I appreciated that the professor spread out major assignments so we weren't overwhelmed at the end.",
   ],
-  "Course Design & Content": [
+  "Curriculum Relevance": [
     "The curriculum is well-designed and covers all the essential topics in the field. Very comprehensive.",
     "Course materials were outdated. We were using textbooks from 2010 in a rapidly evolving field.",
     "The structured approach to the course made it easy to follow along and build on previous knowledge.",
@@ -160,7 +284,7 @@ const SAMPLE_COMMENTS: Record<string, string[]> = {
     "I experienced constant buffering during live lectures. The streaming quality needs significant improvement.",
     "The mobile app for the LMS is terrible. I can't view half my course materials on my phone.",
   ],
-  "Student Support Services": [
+  "Campus Resources": [
     "The writing center helped me improve my thesis significantly. The tutors are very knowledgeable.",
     "Library resources are excellent, especially the online databases. Very helpful for research.",
     "I wish there were more tutoring options available for advanced STEM courses.",
@@ -168,7 +292,7 @@ const SAMPLE_COMMENTS: Record<string, string[]> = {
     "Mental health resources on campus are insufficient. Wait times for counseling are too long.",
     "The career services office helped me prepare for interviews and refine my resume. Great resource.",
   ],
-  "Career & Outcomes": [
+  "Student Engagement": [
     "The internship program connected me with amazing companies. I received a job offer before graduation.",
     "I don't feel the program adequately prepared me for the job market. More practical skills are needed.",
     "Networking events organized by the department were invaluable for making professional connections.",
@@ -176,7 +300,7 @@ const SAMPLE_COMMENTS: Record<string, string[]> = {
     "Alumni mentorship opportunities have been incredibly valuable for my professional development.",
     "I wish there were more industry partnerships to provide real-world project experience.",
   ],
-  "Scheduling & Flexibility": [
+  "Diversity & Inclusion": [
     "The evening class options made it possible for me to work full-time while completing my degree.",
     "Course scheduling conflicts are a major issue. Required courses are only offered once a year.",
     "The flexibility of the online format allowed me to study at my own pace. Perfect for working professionals.",
@@ -186,221 +310,45 @@ const SAMPLE_COMMENTS: Record<string, string[]> = {
   ],
 };
 
-// ---- Helpers ----
+const INSTITUTIONS = ["State University", "Metro College", "Tech Institute", "Liberal Arts College"];
+const SCHOOLS = ["School of Business", "School of Education", "School of Engineering", "School of Arts & Sciences"];
+const PROGRAM_LEVELS = ["Undergraduate", "Graduate", "Doctoral", "Certificate"];
+
 function randomChoice<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+/**
+ * Generate a CSV blob from sample comments for demo mode.
+ * This creates a real CSV that will be processed by the real NLP pipeline.
+ */
+function generateDemoCSV(): File {
+  const rows: string[] = [];
+  rows.push("ResponseID,Institution,School,ProgramLevel,SurveyDate,Comment_Text");
 
-function generateWeeks(count: number): string[] {
-  const weeks: string[] = [];
+  let id = 1;
   const now = new Date();
-  for (let i = count - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i * 7);
-    const start = new Date(d);
-    start.setDate(start.getDate() - start.getDay() + 1);
-    weeks.push(start.toISOString().slice(0, 10));
-  }
-  return weeks;
-}
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
+  for (const [_topicName, comments] of Object.entries(SAMPLE_COMMENTS)) {
+    for (const comment of comments) {
+      const inst = randomChoice(INSTITUTIONS);
+      const school = randomChoice(SCHOOLS);
+      const prog = randomChoice(PROGRAM_LEVELS);
+      // Random date in the last 12 weeks
+      const daysAgo = Math.floor(Math.random() * 84);
+      const date = new Date(now);
+      date.setDate(date.getDate() - daysAgo);
+      const dateStr = date.toISOString().split("T")[0];
 
-// ---- Generate Demo Data ----
-function generateDemoResult(): AnalysisResult {
-  const totalComments = randomInt(800, 1500);
-  const cleanedComments = Math.round(totalComments * (0.85 + Math.random() * 0.1));
-
-  // Theme summary — scale counts so they sum to ~85-92% of cleanedComments
-  const rawThemes = SEED_THEMES.map((t, i) => ({
-    topic: i,
-    name: t.name,
-    rawCount: randomInt(40, 200),
-    keywords: t.keywords.slice(0, 5),
-  }));
-  const rawTotal = rawThemes.reduce((s, t) => s + t.rawCount, 0);
-  const targetAssigned = Math.round(cleanedComments * (0.85 + Math.random() * 0.07));
-  const themeSummary: ThemeSummary[] = rawThemes.map((t) => ({
-    topic: t.topic,
-    name: t.name,
-    count: Math.max(10, Math.round((t.rawCount / rawTotal) * targetAssigned)),
-    keywords: t.keywords,
-  })).sort((a, b) => b.count - a.count);
-
-  const totalAssigned = themeSummary.reduce((s, t) => s + t.count, 0);
-  const noiseCount = Math.max(0, cleanedComments - totalAssigned);
-  const noiseRatio = noiseCount / cleanedComments;
-
-  // Sentiment
-  const sentimentBias: Record<string, number> = {
-    "Instructor Support": 0.25,
-    "Advising & Communication": -0.05,
-    "Course Workload": -0.15,
-    "Course Design & Content": 0.1,
-    "Technical Platform Issues": -0.3,
-    "Student Support Services": 0.15,
-    "Career & Outcomes": 0.05,
-    "Scheduling & Flexibility": 0.0,
-  };
-
-  const themeSentiment: ThemeSentiment[] = themeSummary.map((t) => {
-    const bias = sentimentBias[t.name] || 0;
-    const posRatio = Math.min(0.85, Math.max(0.1, 0.4 + bias + (Math.random() - 0.5) * 0.15));
-    const negRatio = Math.min(0.6, Math.max(0.05, 0.25 - bias + (Math.random() - 0.5) * 0.1));
-    const neuRatio = Math.max(0.05, 1 - posRatio - negRatio);
-    const posCount = Math.round(t.count * posRatio);
-    const negCount = Math.round(t.count * negRatio);
-    const neuCount = t.count - posCount - negCount;
-    const avgCompound = parseFloat((bias + (Math.random() - 0.5) * 0.2).toFixed(3));
-    return {
-      topic: t.topic,
-      topicName: t.name,
-      count: t.count,
-      avgCompound,
-      positiveCount: posCount,
-      negativeCount: negCount,
-      neutralCount: Math.max(0, neuCount),
-      positivePct: parseFloat((posCount / t.count * 100).toFixed(1)),
-      negativePct: parseFloat((negCount / t.count * 100).toFixed(1)),
-      neutralPct: parseFloat((Math.max(0, neuCount) / t.count * 100).toFixed(1)),
-    };
-  });
-
-  // Stratified
-  const byInstitution: StratifiedRow[] = [];
-  const byProgram: StratifiedRow[] = [];
-  const bySchool: StratifiedRow[] = [];
-  for (const t of themeSummary) {
-    for (const inst of INSTITUTIONS) {
-      byInstitution.push({ group: inst, topic: t.topic, topicName: t.name, count: randomInt(5, 50) });
-    }
-    for (const prog of PROGRAM_LEVELS) {
-      byProgram.push({ group: prog, topic: t.topic, topicName: t.name, count: randomInt(5, 50) });
-    }
-    for (const sch of SCHOOLS) {
-      bySchool.push({ group: sch, topic: t.topic, topicName: t.name, count: randomInt(5, 50) });
+      // Properly escape CSV fields with quotes
+      const escapedComment = `"${comment.replace(/"/g, '""')}"`;
+      rows.push(`R${id},${inst},${school},${prog},${dateStr},${escapedComment}`);
+      id++;
     }
   }
 
-  // Trends
-  const weeks = generateWeeks(12);
-  const trends: TrendRow[] = [];
-  for (const t of themeSummary) {
-    let base = randomInt(5, 20);
-    for (const w of weeks) {
-      base = Math.max(1, base + randomInt(-3, 4));
-      trends.push({ week: w, topic: t.topic, topicName: t.name, count: base });
-    }
-  }
-
-  // Emerging themes
-  const emergingThemes: EmergingTheme[] = themeSummary.map((t) => {
-    const topicTrends = trends.filter((tr) => tr.topic === t.topic);
-    const latest = topicTrends[topicTrends.length - 1];
-    const prev = topicTrends[topicTrends.length - 2];
-    const growthRate = prev.count > 0 ? parseFloat((latest.count / prev.count).toFixed(2)) : 0;
-    return {
-      topic: t.topic,
-      topicName: t.name,
-      previousWeek: prev.week,
-      previousCount: prev.count,
-      latestWeek: latest.week,
-      latestCount: latest.count,
-      growthRate,
-      emerging: growthRate >= 1.5 && latest.count >= 3,
-    };
-  });
-
-  // Quotes
-  const quotes: Quote[] = [];
-  for (const t of themeSummary) {
-    const pool = SAMPLE_COMMENTS[t.name] || [];
-    const selected = pool.slice(0, Math.min(5, pool.length));
-    selected.forEach((q, i) => {
-      quotes.push({
-        topic: t.topic,
-        topicName: t.name,
-        quote: q,
-        similarity: parseFloat((0.95 - i * 0.05 + Math.random() * 0.02).toFixed(4)),
-      });
-    });
-  }
-
-  // Validation
-  const validation: ValidationRow[] = themeSummary.map((t) => ({
-    topic: t.topic,
-    topicName: t.name,
-    size: t.count,
-    percentage: parseFloat((t.count / cleanedComments * 100).toFixed(2)),
-    coherence: parseFloat((0.5 + Math.random() * 0.4).toFixed(4)),
-    qualityFlag: t.count < 10 ? "Very Small" : "OK",
-  }));
-  validation.push({
-    topic: -1,
-    topicName: "Noise",
-    size: Math.max(0, noiseCount),
-    percentage: parseFloat((noiseRatio * 100).toFixed(2)),
-    coherence: null,
-    qualityFlag: "Noise",
-  });
-
-  // Executive summary
-  const topThemes = themeSummary.slice(0, 5).map((t) => `${t.name} (n=${t.count})`).join(", ");
-  const strengths = themeSentiment.filter((s) => s.avgCompound > 0.1).sort((a, b) => b.avgCompound - a.avgCompound).slice(0, 3);
-  const concerns = themeSentiment.filter((s) => s.avgCompound < -0.1).sort((a, b) => a.avgCompound - b.avgCompound).slice(0, 3);
-  const emerging = emergingThemes.filter((e) => e.emerging);
-
-  let summary = `EXECUTIVE SUMMARY\n${"=".repeat(50)}\n\n`;
-  summary += `Analysis of ${cleanedComments} survey comments (from ${totalComments} total responses).\n\n`;
-  summary += `TOP THEMES\n${"-".repeat(30)}\n${topThemes}\n\n`;
-  summary += `STRENGTHS (Positive Themes)\n${"-".repeat(30)}\n`;
-  summary += strengths.length > 0
-    ? strengths.map((s) => `  ${s.topicName} (avg sentiment: ${s.avgCompound}, ${s.positivePct}% positive)`).join("\n")
-    : "  No strongly positive themes identified.";
-  summary += `\n\nCONCERNS (Negative Themes)\n${"-".repeat(30)}\n`;
-  summary += concerns.length > 0
-    ? concerns.map((s) => `  ${s.topicName} (avg sentiment: ${s.avgCompound}, ${s.negativePct}% negative)`).join("\n")
-    : "  No strongly negative themes identified.";
-  summary += `\n\nEMERGING ISSUES\n${"-".repeat(30)}\n`;
-  summary += emerging.length > 0
-    ? emerging.map((e) => `  ${e.topicName} (growth: ${e.growthRate}x, latest count: ${e.latestCount})`).join("\n")
-    : "  No emerging themes detected.";
-
-  return {
-    themeSummary,
-    themeSentiment,
-    byInstitution,
-    byProgram,
-    bySchool,
-    trends,
-    emergingThemes,
-    quotes,
-    validation,
-    executiveSummary: summary,
-    totalComments,
-    cleanedComments,
-    noiseRatio: parseFloat(noiseRatio.toFixed(4)),
-    processingTime: parseFloat((2 + Math.random() * 5).toFixed(1)),
-  };
-}
-
-// ---- CSV Parser (basic) ----
-function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
-  return lines.slice(1).map((line) => {
-    const values = line.split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
-    const row: Record<string, string> = {};
-    headers.forEach((h, i) => { row[h] = values[i] || ""; });
-    return row;
-  });
+  const csvContent = rows.join("\n");
+  return new File([csvContent], "demo_survey_data.csv", { type: "text/csv" });
 }
 
 // ---- Provider ----
@@ -411,66 +359,58 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const [progressLabel, setProgressLabel] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
 
-  const steps = [
-    "Loading dataset...",
-    "Cleaning comments...",
-    "Generating embeddings...",
-    "Running topic modeling...",
-    "Extracting representative quotes...",
-    "Analyzing sentiment...",
-    "Running stratified analysis...",
-    "Detecting trends...",
-    "Validating topics...",
-    "Generating executive summary...",
-    "Exporting datasets...",
-  ];
-
-  const simulateProgress = useCallback(async () => {
-    for (let i = 0; i < steps.length; i++) {
-      setProgressLabel(steps[i]);
-      setProgress(Math.round(((i + 1) / steps.length) * 100));
-      await sleep(400 + Math.random() * 600);
-    }
+  const handleProgress = useCallback((p: PipelineProgress) => {
+    setProgress(p.percent);
+    setProgressLabel(p.detail || p.step);
   }, []);
 
   const runAnalysis = useCallback(async (file: File) => {
     setIsProcessing(true);
     setProgress(0);
     setFileName(file.name);
-    setProgressLabel("Starting pipeline...");
+    setProgressLabel("Starting analysis pipeline...");
 
-    // Read the file (we accept it but generate demo-quality results)
-    const _text = await file.text();
-    const _rows = parseCSV(_text);
+    const startTime = Date.now();
 
-    await simulateProgress();
-
-    const data = generateDemoResult();
-    // If we parsed real rows, adjust counts
-    if (_rows.length > 10) {
-      data.totalComments = _rows.length;
-      data.cleanedComments = Math.round(_rows.length * 0.88);
+    try {
+      const pipelineResult = await runPipeline(file, undefined, handleProgress);
+      const analysisResult = pipelineToAnalysis(pipelineResult, startTime);
+      setResult(analysisResult);
+      setProgress(100);
+      setProgressLabel("Analysis complete!");
+    } catch (err) {
+      console.error("Analysis pipeline error:", err);
+      setProgressLabel(`Error: ${err instanceof Error ? err.message : "Analysis failed"}`);
+      throw err;
+    } finally {
+      setIsProcessing(false);
     }
-
-    setResult(data);
-    setIsProcessing(false);
-    setProgress(100);
-    setProgressLabel("Analysis complete!");
-  }, [simulateProgress]);
+  }, [handleProgress]);
 
   const loadDemo = useCallback(async () => {
     setIsProcessing(true);
     setProgress(0);
     setFileName("demo_survey_data.csv");
-    setProgressLabel("Loading demo dataset...");
+    setProgressLabel("Generating demo dataset...");
 
-    await simulateProgress();
+    const startTime = Date.now();
 
-    setResult(generateDemoResult());
-    setIsProcessing(false);
-    setProgress(100);
-    setProgressLabel("Analysis complete!");
-  }, [simulateProgress]);
+    try {
+      // Generate a real CSV from sample comments and run it through the real pipeline
+      const demoFile = generateDemoCSV();
+      const pipelineResult = await runPipeline(demoFile, undefined, handleProgress);
+      const analysisResult = pipelineToAnalysis(pipelineResult, startTime);
+      setResult(analysisResult);
+      setProgress(100);
+      setProgressLabel("Analysis complete!");
+    } catch (err) {
+      console.error("Demo analysis error:", err);
+      setProgressLabel(`Error: ${err instanceof Error ? err.message : "Demo analysis failed"}`);
+      throw err;
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [handleProgress]);
 
   const reset = useCallback(() => {
     setResult(null);

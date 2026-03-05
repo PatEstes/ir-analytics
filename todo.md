@@ -40,3 +40,21 @@
 - [x] Add "Export All" button in dashboard header for full filtered dataset
 - [x] Test all exports with filters applied
 - [x] Checkpoint and deliver
+
+## Real Client-Side NLP Pipeline (Option A)
+
+- [x] Research Transformers.js browser compatibility and model sizes
+- [x] Install @huggingface/transformers, ml-kmeans, vader-sentiment, papaparse
+- [x] Build embeddings module (all-MiniLM-L6-v2 via Transformers.js)
+- [x] Build sentiment module (VADER pure-JS, no model download needed)
+- [x] Build clustering module (k-means on embeddings for topic discovery)
+- [x] Build quote extraction module (cosine similarity to cluster centroids)
+- [x] Build seed topic matching (map clusters to higher-ed seed topics)
+- [x] Fix CSV parser using PapaParse (handles quoted fields, commas, multi-line)
+- [x] Add auto-detection of column mapping with fuzzy matching
+- [x] Replace generateDemoResult() with real pipeline in AnalyticsContext
+- [x] Update progress indicators with real pipeline step progress
+- [x] Demo mode generates real CSV from sample comments and runs through real pipeline
+- [x] Test with real CSV data end-to-end (50 comments, 7 themes, 4.9s)
+- [x] Write vitest tests for pipeline modules (13 new tests, 34 total)
+- [x] Checkpoint and deliver
