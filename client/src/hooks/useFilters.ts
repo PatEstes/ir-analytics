@@ -15,6 +15,7 @@ import type {
   EmergingTheme,
   Quote,
   ValidationRow,
+  EnrichedComment,
 } from "@/contexts/AnalyticsContext";
 
 const INSTITUTIONS = ["State University", "Metro College", "Tech Institute", "Liberal Arts College"];
@@ -103,6 +104,12 @@ export function useFilters(result: AnalysisResult | null) {
       (v) => v.topic === -1 || activeTopicIds.has(v.topic)
     );
 
+    // Filter enriched comments by active topics
+    const activeTopicNames = new Set(themeSummary.map((t) => t.name));
+    const enrichedComments: EnrichedComment[] = (result.enrichedComments || []).filter(
+      (c) => activeTopicNames.has(c.topic)
+    );
+
     // Recalculate summary stats based on filtered themes
     const filteredCleanedComments = themeSummary.reduce(
       (s, t) => s + t.count,
@@ -177,6 +184,7 @@ export function useFilters(result: AnalysisResult | null) {
       emergingThemes,
       quotes,
       validation,
+      enrichedComments,
       executiveSummary: summary,
       filteredCleanedComments,
     };

@@ -6,7 +6,7 @@
  * Filters: Theme, Institution, Program Level, School, Text Search
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { useAnalytics } from "@/contexts/AnalyticsContext";
 import { useFilters } from "@/hooks/useFilters";
@@ -40,6 +40,8 @@ import {
   exportValidation,
   exportAll,
 } from "@/lib/csvExport";
+import WordCloud from "@/components/WordCloud";
+import { extractTermFrequencies } from "@/lib/nlp/termFrequency";
 import {
   BarChart,
   Bar,
@@ -137,10 +139,24 @@ export default function Dashboard() {
   const {
     themeSummary, themeSentiment, byInstitution, byProgram,
     trends, emergingThemes, quotes, validation, executiveSummary,
-    filteredCleanedComments,
+    filteredCleanedComments, enrichedComments,
   } = filtered;
 
   const { totalComments, cleanedComments, noiseRatio, processingTime } = result;
+
+  // Word cloud: selected topic for per-topic view
+  const [wordCloudTopic, setWordCloudTopic] = useState<string | null>(null);
+
+  // Compute term frequencies for word cloud (memoized)
+  const wordCloudTerms = useMemo(() => {
+    const comments = enrichedComments || [];
+    if (comments.length === 0) return [];
+    if (wordCloudTopic) {
+      const topicComments = comments.filter((c) => c.topic === wordCloudTopic).map((c) => c.text);
+      return extractTermFrequencies(topicComments, 35);
+    }
+    return extractTermFrequencies(comments.map((c) => c.text), 45);
+  }, [enrichedComments, wordCloudTopic]);
 
   return (
     <div className="min-h-screen bg-background grid-dots">
@@ -286,6 +302,44 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
+                {/* Word Cloud */}
+                <div className="panel p-6 mt-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold" style={{ fontFamily: "var(--font-heading)" }}>Word Cloud</h2>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={wordCloudTopic || ""}
+                        onChange={(e) => setWordCloudTopic(e.target.value || null)}
+                        className="text-xs bg-secondary border border-border rounded px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">All Topics</option>
+                        {themeSummary.map((t) => (
+                          <option key={t.topic} value={t.name}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {wordCloudTerms.length > 0 ? (
+                    <WordCloud
+                      terms={wordCloudTerms}
+                      width={800}
+                      height={380}
+                      onWordClick={(term) => {
+                        // Set the search filter to the clicked word
+                        setFilters((prev) => ({ ...prev, searchQuery: term }));
+                      }}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
+                      No comment data available for word cloud visualization.
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-3 text-center">
+                    Click a word to filter the dashboard by that term.
+                    {wordCloudTopic && <> Showing terms for <strong className="text-primary">{wordCloudTopic}</strong>.</>}
+                  </p>
+                </div>
+
                 {/* By Program Level */}
                 <div className="panel p-6 mt-6">
                   <h2 className="text-lg font-semibold mb-4" style={{ fontFamily: "var(--font-heading)" }}>Themes by Program Level</h2>

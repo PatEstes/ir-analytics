@@ -100,3 +100,14 @@
 - [x] Write vitest tests for column mapping logic (9 tests)
 - [x] Test end-to-end with demo and real CSV data
 - [x] Checkpoint and deliver
+
+## Word Cloud Widget
+
+- [x] Review Themes tab layout and data flow in Dashboard.tsx
+- [x] Build term frequency extraction utility from comments per topic
+- [x] Build WordCloud component (SVG-based, sized by frequency, themed colors)
+- [x] Integrate WordCloud into Themes tab (per-topic or global toggle)
+- [x] Ensure word cloud respects active filters
+- [x] Write vitest tests for term frequency extraction (10 tests)
+- [x] Test end-to-end with demo data
+- [x] Checkpoint and deliver

@@ -63,6 +63,18 @@ export interface ValidationRow {
   qualityFlag: string;
 }
 
+export interface EnrichedComment {
+  id: string;
+  text: string;
+  topic: string;
+  sentiment: string;
+  compound: number;
+  institution: string;
+  school: string;
+  programLevel: string;
+  date: string;
+}
+
 export interface AnalysisResult {
   themeSummary: ThemeSummary[];
   themeSentiment: ThemeSentiment[];
@@ -73,6 +85,7 @@ export interface AnalysisResult {
   emergingThemes: EmergingTheme[];
   quotes: Quote[];
   validation: ValidationRow[];
+  enrichedComments: EnrichedComment[];
   executiveSummary: string;
   totalComments: number;
   cleanedComments: number;
@@ -229,6 +242,19 @@ function pipelineToAnalysis(pr: PipelineResult, startTime: number): AnalysisResu
 
   const processingTime = parseFloat(((Date.now() - startTime) / 1000).toFixed(1));
 
+  // Map pipeline comments to enriched comments for word cloud
+  const enrichedComments: EnrichedComment[] = pr.comments.map((c) => ({
+    id: c.id,
+    text: c.text,
+    topic: c.topic,
+    sentiment: c.sentiment,
+    compound: c.compound,
+    institution: c.institution,
+    school: c.school,
+    programLevel: c.programLevel,
+    date: c.date,
+  }));
+
   return {
     themeSummary,
     themeSentiment,
@@ -239,6 +265,7 @@ function pipelineToAnalysis(pr: PipelineResult, startTime: number): AnalysisResu
     emergingThemes,
     quotes,
     validation,
+    enrichedComments,
     executiveSummary: pr.executiveSummary,
     totalComments: pr.totalComments,
     cleanedComments: pr.analyzedComments,
